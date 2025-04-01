@@ -1,0 +1,118 @@
+# Debugging Process: Identifying and Stopping Unwanted Services (code-server)
+
+## **Issue Summary**
+The system was running a Node.js process on port `8080`, and it was unclear what was starting it. 
+
+After investigation, it was determined that `code-server` was responsible.
+
+## **Debugging Steps and Commands Used**
+
+### **Step 1: Checking Active Services**
+To identify if any `node` process was running as a service, we used:
+```bash
+sudo systemctl list-units --type=service | grep node
+```
+**Explanation:**
+- `systemctl list-units --type=service` → Lists all active services.
+- `grep node` → Filters results to show only services related to "node".
+
+#### **Findings:**
+- The output did not explicitly show a "node" service, b
+ut we suspected something else was triggering the Node.js process.
+
+---
+### **Step 2: Checking Processes Running on Port 8080**
+Since the issue involved a process listening on port `8080`, we checked which process was using this port:
+```bash
+sudo lsof -i :8080
+```
+**Explanation:**
+- `lsof -i :8080` → Lists all open files associated with network connections on port 8080.
+
+#### **Findings:**
+- The output showed a `node` process running on port `8080`.
+
+---
+### **Step 3: Identifying the Process Details**
+Once the `node` process was found, we needed more details about it:
+```bash
+sudo ps -fp <PID>
+```
+For example, if the process ID (`PID`) was `45145`, the command was:
+```bash
+sudo ps -fp 45145
+```
+**Explanation:**
+- `ps -fp <PID>` → Shows detailed information about the specific process.
+
+ps aux
+This command lists all running processes on the system in a detailed format.
+
+ps → Process status command
+
+a → Shows processes of all users, not just the current user
+
+u → Displays processes in a user-oriented format (includes user, CPU %, memory %, etc.)
+
+x → Shows processes that are not attached to a terminal
+
+ps -fp <PID>
+This command gives detailed information about a specific process.
+
+ps → Displays process details
+
+-f → Full-format listing (provides parent process ID, start time, etc.)
+
+-p <PID> → Specifies the process ID (PID) to inspect
+
+#### **Findings:**
+- The process was `/usr/lib/code-server/lib/node`, indicating that `code-server` was running a Node.js instance.
+
+---
+### **Step 4: Checking Running Services for code-server**
+Since `code-server` was suspected, we checked if it was running as a systemd service:
+```bash
+sudo systemctl list-units --type=service | grep code
+```
+#### **Findings:**
+- The output confirmed that `code-server@root.service` was actively running.
+
+---
+### **Step 5: Stopping and Disabling code-server**
+#### **Stopping the Service Temporarily**
+To immediately stop `code-server`:
+```bash
+sudo systemctl stop code-server@root
+```
+#### **Disabling the Service on Boot**
+To prevent it from starting on system boot:
+```bash
+sudo systemctl disable code-server@root
+```
+#### **Verifying if the Process is Stopped**
+To ensure `code-server` was stopped:
+```bash
+ps aux | grep code-server
+```
+If no output related to `code-server` appears, the service is successfully stopped.
+
+---
+### **Step 6: (Optional) Completely Removing code-server**
+If `code-server` is no longer needed, uninstall it completely:
+```bash
+sudo apt remove code-server -y
+```
+To remove configuration files and ensure it is fully removed:
+```bash
+sudo rm -rf ~/.config/code-server /etc/systemd/system/code-server@root.service
+sudo systemctl daemon-reload
+```
+Finally, reboot the system to confirm:
+```bash
+sudo reboot
+```
+
+---
+## **Conclusion**
+The issue was traced back to `code-server`, which was running as a systemd service and starting a Node.js process on port `8080`. By stopping and disabling the service, we successfully prevented it from running on boot. If `code-server` is no longer needed, it can be completely removed from the system.
+
