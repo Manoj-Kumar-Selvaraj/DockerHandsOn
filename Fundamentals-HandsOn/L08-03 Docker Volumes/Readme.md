@@ -19,7 +19,8 @@
 ## Let’s create a file in the volume using Nano
 
     apt-get update
-    apt-get install nanodocker run -d --name voltest -v myvol:/app nginx:latest
+    apt-get install nano
+    docker run -d --name voltest -v myvol:/app nginx:latest
 
 ## Create a file in the app folder
     cd app
